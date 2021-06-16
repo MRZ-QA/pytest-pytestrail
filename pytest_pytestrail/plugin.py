@@ -96,6 +96,13 @@ def pytest_addoption(parser):
         default="Auto generated {datetime} PyTestRail {__version__}",
     )
 
+    _help = "All required custom fields"
+    parser.addini(
+        "pytestrail-custom-fields",
+        help=_help,
+        default=None,
+    )
+
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "{}(*args): Mark test".format(PYTESTRAIL_MARK))
@@ -146,13 +153,24 @@ class PyTestRail:
             else:
                 setattr(case_items[0].pytestrail_case, "last", True)
 
+    def set_custom_fields(self, config):
+        if "custom_fields" in config:
+            custom_fields = config["custom_fields"].split()
+            keys = [key for key in custom_fields[::2]]
+            values = [value for value in custom_fields[1::2]]
+
+            config = dict(zip(keys, values))
+
+        return config
+
     def pytest_report_header(self) -> str:
         self.case_ids = self._config.get_case_ids(self._config.test_run)
 
+        custom_config = self.set_custom_fields(self._config.__dict__)
         # create reporting
         if self._config.report:
             self.reporter = Sender(
-                api=self._config.api, run_id=self._config.get_test_run()
+                api=self._config.api, run_id=self._config.get_test_run(), kwargs=custom_config
             )
             self.reporter.start()
 

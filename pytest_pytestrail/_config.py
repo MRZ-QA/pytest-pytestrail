@@ -54,13 +54,21 @@ class Config:
         self.testrun_description = conf.getoption(
             "--tr-testrun-description"
         ) or conf.getini("pytestrail-testrun-description")
-
+        self.custom_fields = conf.getini("pytestrail-custom-fields")
         self.__date_time = datetime.now() if self.tz_local else datetime.utcnow()
         self._conf = conf
         self.api = TestRailAPI(
             self.url, self.email, self.password, verify=not self.ssl_check
         )
         self.work()
+
+    def is_test_run_available(self):
+        """
+        Validates that a test run exist and is not closed
+        :return: True if the test run exists and is OPEN
+        """
+        if self.test_run:
+            return not self.api.runs.get_run(self.test_run)["is_completed"]
 
     def work(self) -> None:
         if self.project_id:
@@ -78,7 +86,11 @@ class Config:
                 val["include_all"] = False
             else:
                 val["include_all"] = True
-            response = self.api.runs.add_run(**val)
+
+            if self.is_test_run_available():
+                response = self.api.runs.get_run(self.test_run)
+            else:
+                response = self.api.runs.add_run(**val)
             self.test_run = response["id"]
         elif not self.test_run:
             raise pytest.UsageError("No args project_id or test_run")
