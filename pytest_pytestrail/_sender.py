@@ -86,17 +86,15 @@ _REPORT = Union[ReportCase, ReportStep]
 
 
 class Sender(threading.Thread):
-    def __init__(self, api: TestRailAPI, run_id: int, **kwargs) -> None:
+    def __init__(self, api: TestRailAPI, run_id: int, custom_fields: dict, **kwargs) -> None:
         self.__api = api
         self.__run_id = run_id
         self.__kwargs = {k: v for k, v in kwargs.items() if v}
         self.__queue = Queue()  # type: Queue
         self.__steps = {}  # type: Dict[int, list]
+        self.custom_fields = custom_fields
 
         super().__init__(target=self.__worker, args=())
-
-    def get_kwargs(self):
-        return self.__kwargs
 
     def send(self, case: Case, report: TestReport) -> None:
         rep = self.__create_report(case, report)
@@ -123,7 +121,7 @@ class Sender(threading.Thread):
             elif isinstance(data, Report):
                 request = data.get()
                 request["run_id"] = self.__run_id
-                request.update(self.get_kwargs()['kwargs'])
+                request.update(self.custom_fields)
                 try:
                     self.__api.results.add_result_for_case(**request)
                 except Exception:  # noqa

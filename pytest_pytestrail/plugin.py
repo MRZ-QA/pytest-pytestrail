@@ -170,7 +170,7 @@ class PyTestRail:
         # create reporting
         if self._config.report:
             self.reporter = Sender(
-                api=self._config.api, run_id=self._config.get_test_run(), kwargs=custom_config
+                api=self._config.api, run_id=self._config.get_test_run(), custom_fields=custom_config
             )
             self.reporter.start()
 
