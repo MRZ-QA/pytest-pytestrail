@@ -1,5 +1,6 @@
 from datetime import datetime
 from functools import lru_cache
+import re
 from typing import List
 
 import pytest
@@ -62,6 +63,10 @@ class Config:
         )
         self.work()
 
+    def get_offset(self, next_part):
+        offset = re.search(".*offset=(\d*).*", next_part)
+        return offset.group(1)
+
     def is_test_run_available(self):
         """
         Validates that a test run exist and is not closed
@@ -100,7 +105,25 @@ class Config:
 
     @lru_cache(16)
     def get_case_ids(self, test_run_id: int) -> List[int]:
-        return [i["case_id"] for i in self.api.tests.get_tests(test_run_id)]
+        selected_tests = []
+        current_offset = 0
+
+        while True:
+            partial_tests = self.api.tests.get_tests(test_run_id, offset=current_offset)
+            selected_tests.extend(partial_tests['tests'])
+            next_part = partial_tests['_links']["next"]
+
+            if not next_part:
+                break
+            else:
+                new_offset = self.get_offset(next_part)
+
+                if new_offset == current_offset:
+                    break
+                else:
+                    current_offset = new_offset
+
+        return [i["case_id"] for i in selected_tests]
 
     def _format_string(self, value: str) -> str:
         try:
